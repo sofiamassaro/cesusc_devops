@@ -1,0 +1,56 @@
+# CI + Continuous Delivery
+# - Roda a cada push ou pull request na develop
+# - Job "build": instala dependências, roda o ESLint (análise estática) e os testes (Jest)
+# - Job "delivery": só roda se o build passou e foi um push; faz o merge da develop na main
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Rodar testes (unidade e integração)
+        run: npm test
+
+  delivery:
+    needs: build
+    # Em pull request não faz merge: só depois que o PR for aceito (push na develop)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout com o ACCESS_TOKEN
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # O token pessoal (classic) é necessário para que o push na main
+          # dispare o workflow de deploy (pushes feitos com o GITHUB_TOKEN padrão não disparam outros workflows)
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Merge da develop na main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git merge --no-ff origin/develop -m "Merge develop na main [CI aprovado]"
+          git push origin main

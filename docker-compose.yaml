@@ -1,0 +1,20 @@
+# Arquivo usado no servidor EC2 (o workflow de deploy copia ele para /opt/projeto-devops).
+# Para rodar localmente: DOCKER_USERNAME=seu_usuario docker compose up -d
+services:
+  app:
+    image: ${DOCKER_USERNAME}/projeto-devops:latest
+    container_name: projeto-devops
+    ports:
+      # Porta 3000 do servidor -> porta 3000 do container.
+      # O Nginx recebe na porta 80 e repassa para a 3000 (proxy reverso).
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    # Reinicia o container automaticamente se ele cair ou se o servidor reiniciar
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
